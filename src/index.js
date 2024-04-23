@@ -1,9 +1,8 @@
-import $, { post } from "jquery";
+import $ from "jquery";
 import * as jose from "jose";
+import Fuse from "fuse.js";
 
 // Vidstack Player for HLS video playback - https://vidstack.io/
-import "vidstack/player/styles/default/theme.css";
-import "vidstack/player/styles/default/layouts/video.css";
 import { VidstackPlayer, VidstackPlayerLayout } from "vidstack/global/player";
 
 const serverHost = "http://localhost:5001";
@@ -14,6 +13,8 @@ const fileUploadButton = $("#submit-file");
 const progressBar = $("#progress-bar");
 const progressBarFill = $("#progress-bar-fill");
 const progressBarText = $("#progress-bar-text");
+const searchIcon = $("#search-icon");
+const searchInput = $("#searchbar");
 
 const dropArea = document.getElementById("drop-area");
 const preview = document.getElementById("preview");
@@ -215,6 +216,27 @@ const executableFileTypes = ["exe", "msi", "apk", "app", "bat", "sh"];
 const fontFileTypes = ["ttf", "otf", "woff", "woff2", "eot"];
 const presentationFileTypes = ["ppt", "pptx", "odp"];
 const spreadsheetFileTypes = ["xls", "xlsx", "ods"];
+
+const fuseOptions = {
+  // isCaseSensitive: false,
+  // includeScore: false,
+  // shouldSort: true,
+  // includeMatches: false,
+  // findAllMatches: false,
+  // minMatchCharLength: 1,
+  // location: 0,
+  // threshold: 0.6,
+  // distance: 100,
+  // useExtendedSearch: false,
+  // ignoreLocation: false,
+  // ignoreFieldNorm: false,
+  // fieldNormWeight: 1,
+  keys: [
+    { name: "name", weight: 0.8 },
+    { name: "type", weight: 0.5 },
+    { name: "path", weight: 0.3 },
+  ],
+};
 
 function LoginUser(token) {
   const decodedToken = jose.decodeJwt(token);
@@ -578,6 +600,14 @@ function DeleteFile(file_path) {
 }
 
 function CreateFileElement(currentFolder, i, path = currentPath) {
+  console.log([
+    "CreateFileElement",
+    currentFolder,
+    i,
+    path,
+    currentPath,
+    currentFolder.children[i],
+  ]);
   const file = currentFolder.children[i];
   const fileType = file.file_type;
   const fileName = file.name;
@@ -726,8 +756,10 @@ function ListFileElements(fileDirectory, path = currentPath) {
     fileList.append(backButton);
   }
 
-  for (let i = 0; i < currentFolder.children.length; i++) {
-    CreateFileElement(currentFolder, i, path);
+  if (currentFolder && currentFolder.children) {
+    for (var i = 0; i < currentFolder.children.length; i++) {
+      CreateFileElement(currentFolder, i, path);
+    }
   }
 }
 
@@ -804,6 +836,12 @@ function setTheme(theme) {
     localStorage.setItem("theme", "dark");
     themeButton.html(moon);
   }
+}
+
+function Search(startingPath, searchTerm) {
+  const fuse = new Fuse(startingPath.children, fuseOptions);
+  const searchResults = fuse.search(searchTerm);
+  return searchResults;
 }
 
 function AddEventListeners() {
@@ -906,6 +944,20 @@ function AddEventListeners() {
       setTheme("system");
     } else {
       setTheme("light");
+    }
+  });
+
+  searchIcon.click(function () {
+    searchInput.toggleClass("active");
+    searchInput.focus();
+  });
+
+  searchInput.keyup(function () {
+    const searchTerm = searchInput.val();
+    const searchResults = Search(RequestUserDirectory(), searchTerm);
+    if (searchResults.length > 0) {
+    } else {
+      ListFileElements(RequestUserDirectory(), "");
     }
   });
 
