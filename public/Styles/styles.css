@@ -143,6 +143,8 @@ footer p a {
   background-color: var(--background-secondary);
   color: var(--color-primary);
   box-sizing: border-box;
+  position: sticky;
+  top: 0;
 }
 
 #navbar h1 {
