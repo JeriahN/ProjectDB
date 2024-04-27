@@ -2,7 +2,7 @@
   "name": "ProjectDB",
   "version": "1.0.0",
   "main": "server.js",
-  "author": "Jeriah Neal <26jneal@redmondschools.org>",
+  "author": "An AP Exam Student",
   "scripts": {
     "start": "concurrently \"webpack --watch\" \"nodemon server.js\"",
     "devTestNote": "\"browser-sync start --proxy 'localhost:3030' --files 'Public/**/*'\"",
@@ -27,6 +27,7 @@
     "sortablejs": "^1.15.2",
     "uuid": "^9.0.1",
     "vidstack": "^1.11.18",
+    "web-vitals": "^3.5.2",
     "webpack": "^5.90.3",
     "webpack-cli": "^5.1.4"
   },

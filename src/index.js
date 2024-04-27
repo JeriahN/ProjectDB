@@ -1,9 +1,7 @@
-import $ from "jquery";
+// NOTE: CODE WAS CREATED WITH THE ASSISTANCE OF GENERATIVE AI AND MORE SPECIFICALLY GITHUB'S COPILOT
+import $, { get } from "jquery";
 import * as jose from "jose";
 import Fuse from "fuse.js";
-
-// Vidstack Player for HLS video playback - https://vidstack.io/
-import { VidstackPlayer, VidstackPlayerLayout } from "vidstack/global/player";
 
 const serverHost = "http://localhost:5001";
 
@@ -224,24 +222,8 @@ const spreadsheetFileTypes = ["xls", "xlsx", "ods"];
 const discImageFileTypes = ["iso", "img", "dmg", "vhd", "vmdk"];
 
 const fuseOptions = {
-  // isCaseSensitive: false,
-  // includeScore: false,
-  // shouldSort: true,
-  // includeMatches: false,
-  // findAllMatches: false,
-  // minMatchCharLength: 1,
-  // location: 0,
-  // threshold: 0.6,
-  // distance: 100,
-  // useExtendedSearch: false,
-  // ignoreLocation: false,
-  // ignoreFieldNorm: false,
-  // fieldNormWeight: 1,
-  keys: [
-    { name: "name", weight: 0.8 },
-    { name: "type", weight: 0.5 },
-    { name: "path", weight: 0.3 },
-  ],
+  includeScore: true,
+  keys: ["name", "path"],
 };
 
 function LoginUser(token) {
@@ -605,15 +587,43 @@ function DeleteFile(file_path) {
   }
 }
 
+function CreateFolder(folder_name) {
+  if (CheckLoggedIn()) {
+    const token = localStorage.getItem("session_token");
+    const password = localStorage.getItem("password");
+    const data = {
+      token: token,
+      password: password,
+      folder_name: folder_name,
+      path: currentPath.join("/"),
+    };
+
+    fetch(`${serverHost}/create_folder`, {
+      credentials: "include",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "access-control-allow-origin": "*",
+      },
+      body: JSON.stringify(data),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw Error(response.statusText);
+        }
+
+        return response.json();
+      })
+      .then((data) => {
+        ListFileElements(RequestUserDirectory(), currentPath.join("/"));
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      });
+  }
+}
+
 function CreateFileElement(currentFolder, i, path = currentPath) {
-  console.log([
-    "CreateFileElement",
-    currentFolder,
-    i,
-    path,
-    currentPath,
-    currentFolder.children[i],
-  ]);
   const file = currentFolder.children[i];
   const fileType = file.file_type;
   const fileName = file.name;
@@ -639,6 +649,9 @@ function CreateFileElement(currentFolder, i, path = currentPath) {
   const deleteButton = document.createElement("button");
   deleteButton.className = "deleteButton";
   deleteButton.innerHTML = trashIcon;
+  deleteButton.name = "Delete";
+  deleteButton.type = "button";
+  deleteButton.setAttribute("aria-label", "Delete");
   deleteButton.addEventListener("click", function () {
     DeleteFile(path.concat(fileName).join("/"))
       .then((response) => {
@@ -667,9 +680,7 @@ function CreateFileElement(currentFolder, i, path = currentPath) {
     case "file":
       let fileIconElement;
       fileIconElement = document.createElement("div");
-
       function GetFileIcon(fileType, fileIconElement) {
-        // Compare the file type to the different lists of file types to determine which icon to use, if the file type is not found, use the generic file icon.
         if (videoFileTypes.includes(fileType)) {
           fileIconElement.innerHTML = filmIcon;
         }
@@ -735,6 +746,112 @@ function CreateFileElement(currentFolder, i, path = currentPath) {
   }
 }
 
+function CreateSearchFileElement(item) {
+  const file = item.item;
+  const fileName = file.name;
+  const type = file.type;
+  const path = file.fullPath;
+  console.log(file);
+
+  const fileElement = document.createElement("div");
+  fileElement.className = "file";
+  fileList.append(fileElement);
+
+  const fileIcon = document.createElement("div");
+  fileIcon.className = "fileIcon";
+  fileElement.append(fileIcon);
+
+  const fileInfo = document.createElement("div");
+  fileInfo.className = "fileInfo";
+  fileElement.append(fileInfo);
+
+  const fileNameElement = document.createElement("h2");
+  fileNameElement.className = "fileName";
+  fileNameElement.textContent = fileName;
+  fileInfo.append(fileNameElement);
+
+  const filePath = document.createElement("p");
+  filePath.className = "filePath";
+  filePath.textContent = path;
+  fileInfo.append(filePath);
+
+  const deleteButton = document.createElement("button");
+  deleteButton.className = "deleteButton";
+  deleteButton.innerHTML = trashIcon;
+  deleteButton.name = "Delete";
+  deleteButton.type = "button";
+  deleteButton.setAttribute("aria-label", "Delete");
+  deleteButton.addEventListener("click", function () {
+    DeleteFile(path)
+      .then((response) => {
+        if (response.ok) {
+          fileElement.remove();
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      });
+  });
+
+  fileInfo.appendChild(deleteButton);
+
+  function GetFileIcon(fileType, fileIconElement) {
+    if (videoFileTypes.includes(fileType)) {
+      return filmIcon;
+    }
+    if (audioFileTypes.includes(fileType)) {
+      return audioIcon;
+    }
+    if (imageFileTypes.includes(fileType)) {
+      return imageIcon;
+    }
+    if (textFileTypes.includes(fileType)) {
+      return textIcon;
+    }
+    if (archiveFileTypes.includes(fileType)) {
+      return archiveIcon;
+    }
+    if (codeFileTypes.includes(fileType)) {
+      return codeIcon;
+    }
+    if (documentFileTypes.includes(fileType)) {
+      return generalFileIcon;
+    }
+    if (executableFileTypes.includes(fileType)) {
+      return executableIcon;
+    }
+    if (fontFileTypes.includes(fileType)) {
+      return fontIcon;
+    }
+    if (presentationFileTypes.includes(fileType)) {
+      return presentationIcon;
+    }
+    if (spreadsheetFileTypes.includes(fileType)) {
+      return spreadsheetIcon;
+    }
+    if (discImageFileTypes.includes(fileType)) {
+      return discIcon;
+    }
+
+    return fileIcon;
+  }
+
+  fileIcon.innerHTML = GetFileIcon(type, fileIcon);
+
+  fileElement.addEventListener("mouseover", function () {
+    fileIcon.innerHTML = generalDownloadIcon;
+  });
+
+  fileElement.addEventListener("mouseout", function () {
+    fileIcon.innerHTML = GetFileIcon(type, fileIcon);
+  });
+
+  fileElement.addEventListener("click", function () {
+    console.log("Clicked on file");
+    DownloadFile(path);
+  });
+}
+
 function ListFileElements(fileDirectory, path = currentPath) {
   fileList.empty();
   ReturnUserDirectory();
@@ -749,10 +866,28 @@ function ListFileElements(fileDirectory, path = currentPath) {
 
   const currentFolder = fileDirectory;
 
+  const createFolderButton = document.createElement("button");
+  createFolderButton.innerHTML = `${folderIcon}Create Folder`;
+  createFolderButton.className = "createFolderButton";
+  createFolderButton.name = "Create Folder";
+  createFolderButton.type = "button";
+  createFolderButton.setAttribute("aria-label", "Create Folder");
+  createFolderButton.addEventListener("click", function () {
+    const folderName = prompt("Enter the name of the folder:");
+    if (folderName) {
+      CreateFolder(folderName);
+    }
+  });
+
+  fileList.append(createFolderButton);
+
   if (path.length > 1 || (path.length === 1 && path[0] !== "")) {
     const backButton = document.createElement("button");
     backButton.innerHTML = backIcon;
     backButton.className = "backButton";
+    backButton.name = "Go Back";
+    backButton.type = "button";
+    backButton.setAttribute("aria-label", "Go Back");
     backButton.addEventListener("click", function () {
       const parentPath = path.slice(0, path.length - 1);
       currentPath = parentPath;
@@ -813,10 +948,12 @@ function SortFiles(sortType) {
   switch (sortType) {
     case "grid":
       fileList.addClass("grid");
+      fileList.removeClass("list");
       localStorage.setItem("fileSort", "grid");
       break;
     case "list":
       fileList.removeClass("grid");
+      fileList.addClass("list");
       localStorage.setItem("fileSort", "list");
       break;
   }
@@ -847,9 +984,34 @@ function setTheme(theme) {
   }
 }
 
-function Search(startingPath, searchTerm) {
-  const fuse = new Fuse(startingPath.children, fuseOptions);
+function CreateSearchIndex(directory, path = "") {
+  let index = [];
+
+  if (directory.type === "file") {
+    index.push({
+      type: directory.file_type,
+      name: directory.name,
+      path: path,
+    });
+  } else if (directory.type === "folder" && directory.children) {
+    for (const child of directory.children) {
+      const currentPath = path ? `${path}/${directory.name}` : directory.name;
+      index = index.concat(CreateSearchIndex(child, currentPath));
+    }
+  }
+
+  return index;
+}
+
+function Search(directory, searchTerm) {
+  const flatIndex = CreateSearchIndex(directory);
+  const fuse = new Fuse(flatIndex, fuseOptions);
   const searchResults = fuse.search(searchTerm);
+
+  searchResults.forEach((result) => {
+    result.item.fullPath = `${result.item.path}/${result.item.name}`;
+  });
+
   return searchResults;
 }
 
@@ -965,6 +1127,10 @@ function AddEventListeners() {
     const searchTerm = searchInput.val();
     const searchResults = Search(RequestUserDirectory(), searchTerm);
     if (searchResults.length > 0) {
+      fileList.empty();
+      for (let i = 0; i < searchResults.length; i++) {
+        CreateSearchFileElement(searchResults[i]);
+      }
     } else {
       ListFileElements(RequestUserDirectory(), "");
     }

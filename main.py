@@ -1,3 +1,4 @@
+# NOTE: CODE WAS CREATED WITH THE ASSISTANCE OF GENERATIVE AI AND MORE SPECIFICALLY GITHUB'S COPILOT
 import os
 from ffmpeg import FFmpeg
 from flask import Flask, request, session, jsonify, send_file
@@ -188,11 +189,16 @@ def download_file(file_path):
     if not authenticate_user(username, password):
         app.logger.error(f"User {username} failed to authenticate")
         return jsonify({"message": "Invalid credentials"}), 401
+    if file_path.startswith(username):
+        file_path = file_path[len(username) + 1 :]
+
     user_dir = Path(database_dir) / username
+
     app.logger.debug(f"User directory: {user_dir}")
     if not user_dir.exists():
         app.logger.error(f"User {username} directory does not exist")
         return jsonify({"message": "User directory does not exist"}), 404
+
     return send_from_directory(user_dir, file_path, as_attachment=True)
 
 
@@ -255,6 +261,43 @@ def upload_file():
     app.logger.info(f"File {filename} uploaded successfully")
 
     return jsonify({"message": "File uploaded successfully"}), 200
+
+
+@app.route("/create_folder", methods=["POST"])
+def create_folder():
+    token = request.json.get("token")
+    app.logger.info(f"User requested folder creation")
+    app.logger.debug(f"Token: {token}")
+    app.logger.debug(f"Request JSON: {request.json}")
+    username = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])[
+        "username"
+    ]
+    password = request.json.get("password")
+    app.logger.info(f"User {username} requested folder creation")
+    if not authenticate_user(username, password):
+        app.logger.error(f"User {username} failed to authenticate")
+        return jsonify({"message": "Invalid credentials"}), 401
+    path = request.json.get("path").lstrip("/")
+    if not path:
+        path = "/"
+    app.logger.debug(f"Path: {path}")
+    folder_name = request.json.get("folder_name")
+    app.logger.debug(f"Folder Name: {folder_name}")
+    user_dir = Path(database_dir) / username
+    app.logger.debug(f"User directory: {user_dir}")
+    if not user_dir.exists():
+        user_dir.mkdir(parents=True)
+        app.logger.info(f"User {username} directory created")
+    folder_path = f"{user_dir}/{path}"
+    folder_path = folder_path.rstrip("/")
+    app.logger.debug(f"Folder Path: {folder_path}")
+    if not Path(folder_path).exists():
+        Path(folder_path).mkdir(parents=True)
+        app.logger.info(f"Path {folder_path} created")
+    new_folder_path = f"{folder_path}/{folder_name}"
+    Path(new_folder_path).mkdir(parents=True)
+    app.logger.info(f"Folder {folder_name} created successfully")
+    return jsonify({"message": "Folder created successfully"}), 200
 
 
 @app.route("/delete", methods=["POST"])
