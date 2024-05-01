@@ -15,6 +15,7 @@ from jose import jwt
 from pathlib import Path
 from flask import send_from_directory
 from gridfs import GridFS
+from PIL import Image
 
 
 database_dir = "data/"
@@ -27,6 +28,10 @@ CORS_ORIGINS = [
     "http://localhost:5000",
     "http://localhost:5001",
 ]
+
+VIDEO_EXTENSIONS = ["mp4", "avi", "mov", "flv", "wmv", "webm", "mkv"]
+AUDIO_EXTENSIONS = ["mp3", "wav", "flac", "aac", "ogg", "wma", "m4a", "aiff"]
+PHOTO_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "svg", "ico"]
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=CORS_ORIGINS)
@@ -202,6 +207,36 @@ def download_file(file_path):
     return send_from_directory(user_dir, file_path, as_attachment=True)
 
 
+@app.route("/requestimagepreview/<path:file_path>", methods=["POST"])
+def request_image_preview():
+    token = request.json.get("token")
+    app.logger.info(f"User requested image preview")
+    app.logger.debug(f"Token: {token}")
+    app.logger.debug(f"Request JSON: {request.json}")
+    username = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])[
+        "username"
+    ]
+    password = request.json.get("password")
+    app.logger.info(f"User {username} requested image preview")
+    if not authenticate_user(username, password):
+        app.logger.error(f"User {username} failed to authenticate")
+        return jsonify({"message": "Invalid credentials"}), 401
+    if file_path.startswith(username):
+        file_path = file_path[len(username) + 1 :]
+
+    user_dir = Path(database_dir) / username
+
+    app.logger.debug(f"User directory: {user_dir}")
+    if not user_dir.exists():
+        app.logger.error(f"User {username} directory does not exist")
+        return jsonify({"message": "User directory does not exist"}), 404
+
+    image = Image.open(f"{user_dir}/{file_path}")
+    image.thumbnail((128, 128))
+    image.save(f"{user_dir}/thumbnail.png")
+    return send_from_directory(user_dir, "thumbnail.png", as_attachment=True)
+
+
 @app.route("/upload", methods=["POST"])
 def upload_file():
     if "file" not in request.files:
@@ -257,8 +292,25 @@ def upload_file():
         Path(file_path).mkdir(parents=True)
         app.logger.info(f"Path {file_path} created")
 
-    file.save(f"{file_path}/{filename}")
-    app.logger.info(f"File {filename} uploaded successfully")
+    # Run different save methods based on the file type, if it is a video type, convert it to AV1
+    try:
+        if filename.split(".")[-1] in VIDEO_EXTENSIONS:
+            try:
+                file.save(f"{file_path}/{filename}")
+                ffmpeg = FFmpeg()
+                ffmpeg.convert_to_av1(f"{file_path}/{filename}")
+            except Exception as e:
+                app.logger.error(f"Error encoding video to AV1: {e}")
+                return jsonify({"message": "Error encoding video to AV1"}), 500
+        elif filename.split(".")[-1] in AUDIO_EXTENSIONS:
+            file.save(f"{file_path}/{filename}")
+        elif filename.split(".")[-1] in PHOTO_EXTENSIONS:
+            file.save(f"{file_path}/{filename}")
+        else:
+            file.save(f"{file_path}/{filename}")
+    except Exception as e:
+        app.logger.error(f"Error saving file: {e}")
+        return jsonify({"message": "Error saving file"}), 500
 
     return jsonify({"message": "File uploaded successfully"}), 200
 
@@ -319,6 +371,7 @@ def delete_file():
     if not user_dir.exists():
         app.logger.error(f"User {username} directory does not exist")
         return jsonify({"message": "User directory does not exist"}), 404
+
     file_path = request.json.get("file_path")
     app.logger.debug(f"File Path: {file_path}")
     file = Path(user_dir) / file_path

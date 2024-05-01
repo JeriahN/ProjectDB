@@ -448,6 +448,99 @@ function DownloadFile(file_path) {
   return false;
 }
 
+// Python Flask Image Request Route
+// @app.route("/requestimagepreview/<path:file_path>", methods=["POST"])
+// def request_image_preview():
+//     token = request.json.get("token")
+//     app.logger.info(f"User requested image preview")
+//     app.logger.debug(f"Token: {token}")
+//     app.logger.debug(f"Request JSON: {request.json}")
+//     username = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])[
+//         "username"
+//     ]
+//     password = request.json.get("password")
+//     app.logger.info(f"User {username} requested image preview")
+//     if not authenticate_user(username, password):
+//         app.logger.error(f"User {username} failed to authenticate")
+//         return jsonify({"message": "Invalid credentials"}), 401
+//     if file_path.startswith(username):
+//         file_path = file_path[len(username) + 1 :]
+
+//     user_dir = Path(database_dir) / username
+
+//     app.logger.debug(f"User directory: {user_dir}")
+//     if not user_dir.exists():
+//         app.logger.error(f"User {username} directory does not exist")
+//         return jsonify({"message": "User directory does not exist"}), 404
+
+//     image = Image.open(f"{user_dir}/{file_path}")
+//     image.thumbnail((128, 128))
+//     image.save(f"{user_dir}/thumbnail.png")
+//     return send_from_directory(user_dir, "thumbnail.png", as_attachment=True)
+
+function RequestImagePreview(file_path) {
+  if (CheckLoggedIn()) {
+    const token = localStorage.getItem("session_token");
+    const password = localStorage.getItem("password");
+    const data = { token: token, password: password };
+
+    fetch(`${serverHost}/requestimagepreview/${file_path}`, {
+      credentials: "include",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "access-control-allow-origin": "*",
+      },
+      body: JSON.stringify(data),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw Error(response.statusText);
+        }
+
+        const totalSize = Number(response.headers.get("Content-Length"));
+
+        const reader = response.body.getReader();
+        let downloadedSize = 0;
+
+        let chunks = [];
+
+        return reader.read().then(function process({ done, value }) {
+          if (done) {
+            const blob = new Blob(chunks);
+            return blob;
+          }
+
+          chunks.push(value);
+
+          downloadedSize += value.length;
+
+          const progress = (downloadedSize / totalSize) * 100;
+          updateProgressBar(progress);
+
+          return reader.read().then(process);
+        });
+      })
+      .then((data) => {
+        const url = window.URL.createObjectURL(data);
+        const a = document.createElement("a");
+
+        updateProgressBar(0);
+
+        a.href;
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        updateProgressBar(0);
+      });
+
+    return true;
+  }
+
+  updateProgressBar(0);
+  return false;
+}
+
 function UploadFile() {
   if (CheckLoggedIn()) {
     const token = localStorage.getItem("session_token");

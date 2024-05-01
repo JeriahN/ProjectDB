@@ -243,7 +243,7 @@ footer p a {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  width: 100%;
+  width: 100vw;
   min-height: 100%;
   padding: 20px;
   box-sizing: border-box;
@@ -252,18 +252,13 @@ footer p a {
 }
 
 #fileList.grid {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  width: 100%;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 24px;
 }
 
 #fileList.grid .file {
-  width: 100%;
-  flex: 1 1 200px;
+  width: 95%;
 }
 
 #sortInputContainer {
@@ -654,4 +649,44 @@ body.light .file {
   font-size: 1rem;
   position: relative;
   margin-left: 10px;
+}
+
+@media (max-width: 768px) {
+  /* Styles for tablet page */
+  #fileList.grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+
+  #fileList .file {
+    width: 95%;
+  }
+
+  #fileList .file .fileIcon {
+    width: 50px;
+    height: 50px;
+  }
+
+  #fileList .file .fileInfo {
+    width: calc(100% - 50px);
+  }
+
+  #fileList .file .fileName {
+    font-size: 1rem;
+  }
+
+  #fileList .file .filePath {
+    font-size: 0.8rem;
+  }
+
+  #fileList .file .deleteButton {
+    width: 50px;
+    height: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Styles for mobile page */
+  #fileList.grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
 }
